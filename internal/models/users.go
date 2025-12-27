@@ -76,6 +76,30 @@ func (m *UserModel) Insert(user *User) error {
 
 }
 
+func (m *UserModel) Update(user User) error {
+	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password = $4`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{user.FirstName, user.LastName, user.Email}
+
+	_, err := m.DB.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		switch {
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+			return ErrDuplicateEmail
+		case errors.Is(err, sql.ErrNoRows):
+			return errRecordNotFound
+		default:
+			return err
+		}
+	}
+
+	return nil
+
+}
+
 func ValidateUsers(v *validator.Validator, user User, password string) {
 	v.Check(user.FirstName == "", "firstName", "you have to provide first name")
 	v.Check(user.LastName == "", "lastName", "you have to provide last name")

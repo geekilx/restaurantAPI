@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email address")
+	errRecordNotFound = errors.New("no record found")
 )
 
 type Models struct {
