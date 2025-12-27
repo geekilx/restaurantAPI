@@ -41,7 +41,7 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = app.models.UserModel.Insert(&user)
+	err = app.models.Users.Insert(&user)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrDuplicateEmail):
@@ -54,6 +54,69 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	err = app.writeJSON(w, r, http.StatusCreated, jsFmt{"user": user}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
+func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	id, err := app.readIDParam(w, r)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	user, err := app.models.Users.GetUser(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	var input struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if input.FirstName != "" {
+		user.FirstName = input.FirstName
+	}
+	if input.LastName != "" {
+		user.LastName = input.LastName
+	}
+	if input.Email != "" {
+		user.Email = input.Email
+	}
+	if input.Password != "" {
+		user.Password.Set(input.Password)
+	}
+
+	err = app.models.Users.Update(*user)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrConflictEdit):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "user successfully updated"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
