@@ -7,15 +7,16 @@ import (
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email address")
-	errRecordNotFound = errors.New("no record found")
+	ErrRecordNotFound = errors.New("no record found")
+	ErrConflictEdit   = errors.New("conflict edit")
 )
 
 type Models struct {
-	UserModel *UserModel
+	Users *UserModel
 }
 
 func NewModels(db *sql.DB) Models {
 	return Models{
-		UserModel: &UserModel{DB: db},
+		Users: &UserModel{DB: db},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/validator"
@@ -76,28 +77,60 @@ func (m *UserModel) Insert(user *User) error {
 
 }
 
-func (m *UserModel) Update(user User) error {
-	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password = $4`
+func (m *UserModel) GetUser(id int64) (*User, error) {
+
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	stmt := `SELECT id, first_name, last_name, email, password_hash FROM users WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{user.FirstName, user.LastName, user.Email}
+	var user User
 
-	_, err := m.DB.ExecContext(ctx, stmt, args...)
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Password.hashPassword)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-			return ErrDuplicateEmail
 		case errors.Is(err, sql.ErrNoRows):
-			return errRecordNotFound
+			return nil, ErrRecordNotFound
 		default:
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return &user, nil
 
+}
+
+func (m *UserModel) Update(user User) error {
+	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password_hash = $4, last_updated = NOW() where id = $5 `
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.ID}
+
+	result, err := m.DB.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "users_email_key"):
+			return ErrDuplicateEmail
+		}
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
 }
 
 func ValidateUsers(v *validator.Validator, user User, password string) {
