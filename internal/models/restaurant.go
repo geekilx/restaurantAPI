@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/validator"
@@ -34,7 +35,12 @@ func (m *RestaurantModel) Insert(restaurant *Restaurant) error {
 
 	err := m.DB.QueryRowContext(ctx, stmt, args...).Scan(&restaurant.ID, &restaurant.CreatedAt, &restaurant.UpdatedAt)
 	if err != nil {
-		return err
+		switch {
+		case strings.Contains(err.Error(), "restaurant_name_key"):
+			return ErrDuplicateRestaurantName
+		default:
+			return err
+		}
 	}
 	return nil
 
