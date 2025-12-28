@@ -54,3 +54,9 @@ func (app *application) noUserFound(w http.ResponseWriter, r *http.Request) {
 
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
+
+func (app *application) noRestaurantFound(w http.ResponseWriter, r *http.Request) {
+	message := "no restaraunt found with this ID"
+
+	app.errorResponse(w, r, http.StatusNotFound, message)
+}
