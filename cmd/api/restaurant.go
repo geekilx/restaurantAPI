@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -40,7 +41,13 @@ func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.R
 
 	err = app.models.Restaurants.Insert(&restaraunt)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, models.ErrDuplicateRestaurantName):
+			v.AddError("restaurant name", "the restaurant name was already taken")
+			app.failedValidationResponse(w, r, v)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
