@@ -83,14 +83,14 @@ func (m *UserModel) GetUser(id int64) (*User, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	stmt := `SELECT id, first_name, last_name, email, password_hash FROM users WHERE id = $1`
+	stmt := `SELECT id, first_name, last_name, email, created_at FROM users WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Password.hashPassword)
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -122,6 +122,27 @@ func (m *UserModel) Update(user User) error {
 	}
 
 	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (m *UserModel) Delete(id int64) error {
+
+	stmt := `DELETE FROM users WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.ExecContext(ctx, stmt, id)
+
+	rowsAffected, err := rows.RowsAffected()
 	if err != nil {
 		return err
 	}
