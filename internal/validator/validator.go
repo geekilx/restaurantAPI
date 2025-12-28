@@ -2,6 +2,7 @@ package validator
 
 import (
 	"regexp"
+	"slices"
 )
 
 type Validator struct {
@@ -34,4 +35,12 @@ func (v *Validator) Check(ok bool, key, value string) {
 
 func CheckEmail(email string, rx *regexp.Regexp) bool {
 	return rx.MatchString(email)
+}
+
+func (v *Validator) Empty(value string) bool {
+	return value == ""
+}
+
+func PermittedValue[T comparable](value T, permittedValues ...T) bool {
+	return slices.Contains(permittedValues, value)
 }
