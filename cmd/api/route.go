@@ -25,7 +25,7 @@ func (app *application) route() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.createUserHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/users/:id", app.updateUserHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/users/:id", app.deleteUserHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/restaurant", app.restaurantCreateHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/restaurants", app.restaurantCreateHandler)
 
 	return router
 }
