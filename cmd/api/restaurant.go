@@ -51,9 +51,26 @@ func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"restaurant": restaraunt}, nil)
+	err = app.writeJSON(w, r, http.StatusCreated, jsFmt{"restaurant": restaraunt}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+
+}
+
+func (app *application) restaurantsListHandler(w http.ResponseWriter, r *http.Request) {
+	restaraunts, err := app.models.Restaurants.GetAll()
+
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if restaraunts == nil {
+		app.errorResponse(w, r, http.StatusOK, "there is no resaturant to be showen")
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"restaurants": restaraunts}, nil)
 
 }
