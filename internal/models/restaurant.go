@@ -46,6 +46,36 @@ func (m *RestaurantModel) Insert(restaurant *Restaurant) error {
 
 }
 
+func (m *RestaurantModel) GetAll() ([]*Restaurant, error) {
+	stmt := `SELECT * FROM restaurant`
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var restaurants []*Restaurant
+
+	for rows.Next() {
+		var restaurant Restaurant
+
+		err := rows.Scan(&restaurant.ID, &restaurant.Name, &restaurant.Country, &restaurant.FullAddress, &restaurant.Cuisine, &restaurant.Status, &restaurant.CreatedAt, &restaurant.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		restaurants = append(restaurants, &restaurant)
+
+	}
+
+	return restaurants, nil
+
+}
+
 func ValidateRestaurant(v *validator.Validator, res Restaurant) {
 	v.Check(v.Empty(res.Name), "name", "restaurant name must be provided")
 	v.Check(v.Empty(res.Country), "country", "country must be provided")
