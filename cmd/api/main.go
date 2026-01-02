@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/geekilx/restaurantAPI/internal/mailer"
 	"github.com/geekilx/restaurantAPI/internal/models"
 
 	_ "github.com/lib/pq"
@@ -24,12 +25,25 @@ type config struct {
 	db struct {
 		DSN string
 	}
+	smtp struct {
+		host      string
+		port      int
+		username  string
+		passsword string
+		sender    string
+	}
+	limiter struct {
+		rps     int
+		burst   int
+		enabled bool
+	}
 }
 
 type application struct {
 	cfg    config
 	logger *slog.Logger
 	models models.Models
+	mailer mailer.Mailer
 }
 
 func main() {
@@ -38,6 +52,16 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4000, "the specific port you want to run your program")
 
 	flag.StringVar(&cfg.db.DSN, "dsn", os.Getenv("RESTAURANT_DB_DSN"), "postgres dsn for database")
+
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 2525, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "372d553c29c9c6", "SMTP username")
+	flag.StringVar(&cfg.smtp.passsword, "smtp-password", "3fb3fd1b008ee2", "SMTP passsword")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "restaurantAPI <no-reply@restaurantAPI.ilx.net>", "SMTP sender")
+
+	flag.IntVar(&cfg.limiter.rps, "limiter-rps", 2, "rate limiter maximum request per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "rate limiter maximum burst")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "enable rate limiter")
 
 	flag.Parse()
 
@@ -56,6 +80,7 @@ func main() {
 		cfg:    cfg,
 		logger: logger,
 		models: models.NewModels(db),
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.passsword, cfg.smtp.sender),
 	}
 
 	var server = http.Server{
