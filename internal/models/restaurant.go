@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -74,6 +75,81 @@ func (m *RestaurantModel) GetAll() ([]*Restaurant, error) {
 
 	return restaurants, nil
 
+}
+
+func (m *RestaurantModel) Update(id int64, restaurant Restaurant) error {
+
+	stmt := `UPDATE restaurant SET name = $1, country = $2, full_address = $3, cuisine = $4, status = $5, updated_at = NOW() WHERE id = $6`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{restaurant.Name, restaurant.Country, restaurant.FullAddress, restaurant.Cuisine, restaurant.Status, id}
+
+	rows, err := m.DB.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "restaurant_name_key"):
+			return ErrDuplicateRestaurantName
+		default:
+			return err
+		}
+	}
+
+	rowsAffected, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRestaurantNotFound
+	}
+
+	return nil
+
+}
+
+func (m *RestaurantModel) Get(id int64) (*Restaurant, error) {
+	stmt := `SELECT * FROM restaurant WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var restaurant Restaurant
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&restaurant.ID, &restaurant.Name, &restaurant.Country, &restaurant.FullAddress, &restaurant.Cuisine, &restaurant.Status, &restaurant.CreatedAt, &restaurant.UpdatedAt)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRestaurantNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &restaurant, nil
+}
+
+func (m *RestaurantModel) Delete(id int64) error {
+	stmt := `DELETE FROM restaurant where id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.ExecContext(ctx, stmt, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRestaurantNotFound
+	}
+
+	return nil
 }
 
 func ValidateRestaurant(v *validator.Validator, res Restaurant) {
