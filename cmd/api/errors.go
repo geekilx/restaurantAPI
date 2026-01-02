@@ -60,3 +60,9 @@ func (app *application) noRestaurantFound(w http.ResponseWriter, r *http.Request
 
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
+
+func (app *application) invalidUserCredintails(w http.ResponseWriter, r *http.Request) {
+	message := "invalid credintails for this user"
+
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, message)
+}

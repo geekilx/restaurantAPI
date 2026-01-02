@@ -131,7 +131,7 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 	// 	user.Password.Set(input.Password)
 	// }
 
-	err = app.models.Users.Update(*user)
+	err = app.models.Users.Update(user)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrConflictEdit):
@@ -150,7 +150,7 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := app.readIDParam(w, r)
+	id, err := app.readIDParam(r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -177,7 +177,7 @@ func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request
 
 func (app *application) userInformationHandler(w http.ResponseWriter, r *http.Request) {
 
-	id, err := app.readIDParam(w, r)
+	id, err := app.readIDParam(r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
