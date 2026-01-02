@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/models"
 	"github.com/geekilx/restaurantAPI/internal/validator"
@@ -54,7 +55,30 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusCreated, jsFmt{"user": user}, nil)
+	token, err := app.models.Tokens.New(72*time.Hour, user.ID, models.ActivationScope)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	data := map[string]any{
+		"userID":          user.ID,
+		"activationToken": token.PlainHash,
+	}
+
+	err = app.mailer.Send(user.Email, "template.tmpl", data)
+	if err != nil {
+		app.logger.Error(err.Error())
+		return
+	}
+
+	err = app.models.Permissions.AddForUser(user.ID, "restaurant:read")
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusCreated, jsFmt{"user": user, "message": "Please check your email in order to activate your account"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -63,7 +87,7 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 
 func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 
-	id, err := app.readIDParam(w, r)
+	id, err := app.readIDParam(r)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -172,6 +196,112 @@ func (app *application) userInformationHandler(w http.ResponseWriter, r *http.Re
 
 	//TODO: adding user authentication in order to keep other users from seeing another user informations is URGENT
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"user": user}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
+func (app *application) userActivateHandler(w http.ResponseWriter, r *http.Request) {
+
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+
+	id, err := app.models.Tokens.GetByToken(input.Token)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			v.AddError("token", "invalid or expired activation token")
+			app.failedValidationResponse(w, r, v)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	user, err := app.models.Users.GetUser(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	user.IsActive = true
+
+	err = app.models.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrDuplicateEmail):
+			app.editConflictResponse(w, r)
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			return
+		}
+	}
+
+	err = app.models.Tokens.DeleteAllTokenForUser(user.ID, models.ActivationScope)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "user successfully updated"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
+func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	user, err := app.models.Users.GetUserByEmail(input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.invalidUserCredintails(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	ok, err := user.Password.Matches(input.Password)
+	if err != nil || !ok {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	token, err := app.models.Tokens.New(24*time.Hour, user.ID, models.AuthenticationScope)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"token": token.Hash, "expiry": token.Expiry.Format(time.RFC822)}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

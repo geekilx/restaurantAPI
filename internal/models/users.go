@@ -46,7 +46,7 @@ func (p *password) Matches(plainpassword string) (bool, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
-			return false, nil
+			return false, err
 		default:
 			return false, err
 		}
@@ -104,13 +104,13 @@ func (m *UserModel) GetUser(id int64) (*User, error) {
 
 }
 
-func (m *UserModel) Update(user User) error {
-	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password_hash = $4, last_updated = NOW() where id = $5 `
+func (m *UserModel) Update(user *User) error {
+	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password_hash = $4, is_active = $5, last_updated = NOW() where id = $6 `
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.ID}
+	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.IsActive, user.ID}
 
 	result, err := m.DB.ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -141,6 +141,9 @@ func (m *UserModel) Delete(id int64) error {
 	defer cancel()
 
 	rows, err := m.DB.ExecContext(ctx, stmt, id)
+	if err != nil {
+		return err
+	}
 
 	rowsAffected, err := rows.RowsAffected()
 	if err != nil {
@@ -154,11 +157,33 @@ func (m *UserModel) Delete(id int64) error {
 	return nil
 }
 
+func (m *UserModel) GetUserByEmail(email string) (*User, error) {
+	stmt := `SELECT id, password_hash FROM users WHERE email = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var user User
+
+	err := m.DB.QueryRowContext(ctx, stmt, email).Scan(&user.ID, &user.Password.hashPassword)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+
+}
+
 func ValidateUsers(v *validator.Validator, user User, password string) {
 	v.Check(user.FirstName == "", "firstName", "you have to provide first name")
 	v.Check(user.LastName == "", "lastName", "you have to provide last name")
 	v.Check(len(user.FirstName) > 50, "firstName", "first name must be greater than 0 and lees than 50 characters")
 	v.Check(len(user.LastName) > 50, "lastName", "last name must be greater than 0 and lees than 50 characters")
 	v.Check(!validator.CheckEmail(user.Email, validator.EmailRX), "email", "you should provide a valid email address")
-	v.Check(len(password) < 6, "password", "passwor dmust be greater than 6 characters")
+	v.Check(len(password) < 6, "password", "password must be greater than 6 characters")
 }
