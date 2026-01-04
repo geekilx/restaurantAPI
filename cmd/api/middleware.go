@@ -1,12 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/geekilx/restaurantAPI/internal/models"
+	"github.com/geekilx/restaurantAPI/internal/validator"
 	"golang.org/x/time/rate"
 )
 
@@ -73,7 +77,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 			if !clients[ip].limiter.Allow() {
 				mu.Unlock()
-				app.serverErrorResponse(w, r, err)
+				app.rateLimitExceededResponse(w, r)
 				return
 			}
 
@@ -84,4 +88,72 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 	})
 
+}
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Add("Vary", "Authorization")
+
+		authorizationHeader := r.Header.Get("Authorization")
+		if authorizationHeader == "" {
+			app.setUserContext(w, r, models.AnonymousUser)
+			println("empty user")
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		headerParts := strings.Split(authorizationHeader, "")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		token := headerParts[1]
+
+		v := validator.New()
+
+		if models.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.failedValidationResponse(w, r, v)
+			return
+		}
+
+		userID, err := app.models.Tokens.GetByToken(token)
+		if err != nil {
+			switch {
+			case errors.Is(err, models.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		user, err := app.models.Users.GetUser(userID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+		}
+
+		r = app.setUserContext(w, r, user)
+
+		fmt.Println(user)
+
+		next.ServeHTTP(w, r)
+	})
+
+}
+
+func (app *application) requiredAutheicatedUser(next http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		user := app.getUserContext(r)
+		if models.IsAnonymous(&user) {
+			app.authorizationRequierd(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+
+	})
 }
