@@ -8,6 +8,8 @@ import (
 	"encoding/base32"
 	"errors"
 	"time"
+
+	"github.com/geekilx/restaurantAPI/internal/validator"
 )
 
 var (
@@ -83,7 +85,7 @@ func (m *TokenModel) GetByToken(plainToken string) (int64, error) {
 
 	hash := sha256.Sum256([]byte(plainToken))
 
-	stmt := `SELECT user_id FROM tokens WHERE hash = $1`
+	stmt := `SELECT * FROM tokens WHERE hash = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -112,4 +114,8 @@ func (m *TokenModel) DeleteAllTokenForUser(userID int64, scope string) error {
 	_, err := m.DB.ExecContext(ctx, stmt, userID, scope)
 	return err
 
+}
+func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
+	v.Check(tokenPlaintext != "", "token", "must be provided")
+	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
 }
