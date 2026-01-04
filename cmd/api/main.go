@@ -4,11 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/mailer"
@@ -44,6 +43,7 @@ type application struct {
 	logger *slog.Logger
 	models models.Models
 	mailer mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {
@@ -83,13 +83,7 @@ func main() {
 		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.passsword, cfg.smtp.sender),
 	}
 
-	var server = http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.port),
-		Handler: app.route(),
-	}
-
-	log.Printf("listening server on :%d", cfg.port)
-	err = server.ListenAndServe()
+	err = app.serve()
 	log.Fatalln(err)
 
 }
