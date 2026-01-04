@@ -16,6 +16,7 @@ type User struct {
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	Email     string    `json:"email"`
+	Role      string    `json:"role"`
 	Password  password  `json:"-"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
@@ -24,6 +25,8 @@ type User struct {
 type UserModel struct {
 	DB *sql.DB
 }
+
+var AnonymousUser = &User{}
 
 type password struct {
 	plainPassword *string
@@ -53,6 +56,10 @@ func (p *password) Matches(plainpassword string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func IsAnonymous(user *User) bool {
+	return user == AnonymousUser
 }
 
 func (m *UserModel) Insert(user *User) error {
