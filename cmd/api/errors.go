@@ -66,3 +66,20 @@ func (app *application) invalidUserCredintails(w http.ResponseWriter, r *http.Re
 
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, message)
 }
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "rate limit exceeded"
+	app.errorResponse(w, r, http.StatusTooManyRequests, message)
+}
+
+func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authentiacate", "Bearer")
+
+	message := "invalid or missing authentication token"
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (app *application) authorizationRequierd(w http.ResponseWriter, r *http.Request) {
+	message := "you don't have the right permission to visit this page"
+
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
