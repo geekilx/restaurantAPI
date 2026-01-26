@@ -25,7 +25,7 @@ type RestaurantModel struct {
 	DB *sql.DB
 }
 
-func (m *RestaurantModel) Insert(restaurant *Restaurant) error {
+func (m *RestaurantModel) Insert(restaurant *Restaurant) (int64, error) {
 	stmt := `INSERT INTO restaurant (name, country, full_address, cuisine, status) VALUES($1, $2, $3, $4, $5) 
 	RETURNING id, created_at, updated_at`
 
@@ -38,12 +38,12 @@ func (m *RestaurantModel) Insert(restaurant *Restaurant) error {
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "restaurant_name_key"):
-			return ErrDuplicateRestaurantName
+			return 0, ErrDuplicateRestaurantName
 		default:
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return restaurant.ID, nil
 
 }
 
@@ -150,6 +150,20 @@ func (m *RestaurantModel) Delete(id int64) error {
 	}
 
 	return nil
+}
+
+func (m *RestaurantModel) CheckIfRestaurantExists(id int64) bool {
+	stmt := `SELECT EXISTS(SELECT FROM restaurant WHERE id = $1)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var ok bool
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&ok)
+	if err != nil {
+		ok = false
+	}
+	return ok
 }
 
 func ValidateRestaurant(v *validator.Validator, res Restaurant) {

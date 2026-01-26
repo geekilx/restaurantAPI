@@ -22,7 +22,14 @@ func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.R
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
+	}
 
+	user := app.getUserContext(r)
+
+	if user.RestaurantID != nil {
+		app.userHasRestaurant(w, r)
+		return
 	}
 
 	restaraunt := models.Restaurant{
@@ -40,12 +47,24 @@ func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.models.Restaurants.Insert(&restaraunt)
+	restaurantID, err := app.models.Restaurants.Insert(&restaraunt)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrDuplicateRestaurantName):
 			v.AddError("restaurant name", "the restaurant name was already taken")
 			app.failedValidationResponse(w, r, v)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	user.RestaurantID = &restaurantID
+	err = app.models.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.noUserFound(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -83,11 +102,6 @@ func (app *application) restaurantUpdateHandler(w http.ResponseWriter, r *http.R
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-
-	// country      | character varying(50)    |           | not null |
-	// full_address | text                     |           | not null |
-	// cuisine      | character varying(50)    |           | not null |
-	// status       | character varying(50)    |           | not null |
 
 	err = app.readJSON(w, r, &input)
 	if err != nil {
@@ -168,6 +182,37 @@ func (app *application) restaurantDeleteHandler(w http.ResponseWriter, r *http.R
 	}
 
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "the resaturant was deleted successfully"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
+func (app *application) showRestaurantHandler(w http.ResponseWriter, r *http.Request) {
+
+	restID, err := app.readIDParam(r)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	exists := app.models.Restaurants.CheckIfRestaurantExists(restID)
+	if !exists {
+		app.noRestaurantFound(w, r)
+		return
+	}
+
+	menus, err := app.models.Menu.GetRestaurantMenus(restID)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	if menus == nil {
+		app.noMenuAvailable(w, r)
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"menus": menus}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
