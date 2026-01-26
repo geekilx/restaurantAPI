@@ -18,6 +18,8 @@ type Models struct {
 	Restaurants *RestaurantModel
 	Tokens      *TokenModel
 	Permissions *PermissionModel
+	Categories  *CategoryModel
+	Menu        *MenuModel
 }
 
 func NewModels(db *sql.DB) Models {
@@ -26,5 +28,7 @@ func NewModels(db *sql.DB) Models {
 		Restaurants: &RestaurantModel{DB: db},
 		Tokens:      &TokenModel{DB: db},
 		Permissions: &PermissionModel{DB: db},
+		Categories:  &CategoryModel{DB: db},
+		Menu:        &MenuModel{DB: db},
 	}
 }
