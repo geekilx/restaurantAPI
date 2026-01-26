@@ -23,7 +23,7 @@ func (m *PermissionModel) GetForAllUser(userID int64) (Permissions, error) {
 	stmt := `SELECT p.code FROM Permissions AS p
 	INNER JOIN users_permissions as up on up.Permission_id = p.id
 	INNER JOIN users AS u on up.user_id = u.id
-	WHERE p.id = $1`
+	WHERE up.user_id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -40,7 +40,7 @@ func (m *PermissionModel) GetForAllUser(userID int64) (Permissions, error) {
 	for rows.Next() {
 		var permission string
 
-		err = rows.Scan(permission)
+		err = rows.Scan(&permission)
 		if err != nil {
 			return nil, err
 		}
