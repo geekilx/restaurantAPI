@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -28,6 +29,11 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
 		Email:     input.Email,
+		Role:      "customer",
+	}
+
+	if r.URL.Path == "/v1/seller" {
+		user.Role = "seller"
 	}
 
 	v := validator.New()
@@ -63,16 +69,28 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 
 	data := map[string]any{
 		"userID":          user.ID,
-		"activationToken": token.PlainHash,
+		"activationToken": token.PlainToken,
 	}
 
-	err = app.mailer.Send(user.Email, "template.tmpl", data)
-	if err != nil {
-		app.logger.Error(err.Error())
-		return
+	go func() {
+		err = app.mailer.Send(user.Email, "template.tmpl", data)
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	}()
+
+	readRole := "restaurant:read"
+
+	if r.URL.Path == "/v1/seller" {
+		writeRole := "restaurant:write"
+		err = app.models.Permissions.AddForUser(user.ID, writeRole)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
 	}
 
-	err = app.models.Permissions.AddForUser(user.ID, "restaurant:read")
+	err = app.models.Permissions.AddForUser(user.ID, readRole)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -289,6 +307,7 @@ func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	fmt.Println(input.Password)
 	ok, err := user.Password.Matches(input.Password)
 	if err != nil || !ok {
 		app.serverErrorResponse(w, r, err)
@@ -301,7 +320,7 @@ func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"token": token.Hash, "expiry": token.Expiry.Format(time.RFC822)}, nil)
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"token": token.PlainToken, "expiry": token.Expiry.Format(time.RFC822)}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

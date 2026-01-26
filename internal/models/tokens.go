@@ -18,11 +18,11 @@ var (
 )
 
 type Token struct {
-	PlainHash string    `json:"token"`
-	Hash      []byte    `json:"-"`
-	UserID    int64     `json:"-"`
-	Expiry    time.Time `json:"expiry"`
-	Scope     string    `json:"-"`
+	PlainToken string    `json:"token"`
+	Hash       []byte    `json:"-"`
+	UserID     int64     `json:"-"`
+	Expiry     time.Time `json:"expiry"`
+	Scope      string    `json:"-"`
 }
 
 type TokenModel struct {
@@ -31,7 +31,7 @@ type TokenModel struct {
 
 func GenerateToken(ttl time.Duration, userID int64, scope string) (*Token, error) {
 
-	token := Token{
+	token := &Token{
 		UserID: userID,
 		Expiry: time.Now().Add(ttl),
 		Scope:  scope,
@@ -41,16 +41,16 @@ func GenerateToken(ttl time.Duration, userID int64, scope string) (*Token, error
 
 	_, err := rand.Read(randomeBytes)
 	if err != nil {
-		return &token, err
+		return nil, err
 	}
 
-	token.PlainHash = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomeBytes)
+	token.PlainToken = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomeBytes)
 
-	hash := sha256.Sum256([]byte(token.PlainHash))
+	hash := sha256.Sum256([]byte(token.PlainToken))
 
 	token.Hash = hash[:]
 
-	return &token, nil
+	return token, nil
 }
 
 func (m TokenModel) New(ttl time.Duration, userID int64, scope string) (*Token, error) {
@@ -85,7 +85,7 @@ func (m *TokenModel) GetByToken(plainToken string) (int64, error) {
 
 	hash := sha256.Sum256([]byte(plainToken))
 
-	stmt := `SELECT * FROM tokens WHERE hash = $1`
+	stmt := `SELECT user_id FROM tokens WHERE hash = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -116,6 +116,6 @@ func (m *TokenModel) DeleteAllTokenForUser(userID int64, scope string) error {
 
 }
 func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
-	v.Check(tokenPlaintext != "", "token", "must be provided")
-	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
+	v.Check(tokenPlaintext == "", "token", "must be provided")
+	v.Check(len(tokenPlaintext) != 26, "token", "must be 26 bytes long")
 }

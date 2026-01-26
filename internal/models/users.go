@@ -12,14 +12,15 @@ import (
 )
 
 type User struct {
-	ID        int64     `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Role      string    `json:"role"`
-	Password  password  `json:"-"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	Email        string    `json:"email"`
+	Role         string    `json:"role"`
+	RestaurantID *int64    `json:"restaurant_id"`
+	Password     password  `json:"-"`
+	IsActive     bool      `json:"is_active"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type UserModel struct {
@@ -44,8 +45,8 @@ func (p *password) Set(plainpassword string) error {
 	return nil
 }
 
-func (p *password) Matches(plainpassword string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword(p.hashPassword, []byte(plainpassword))
+func (p *password) Matches(plainPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword(p.hashPassword, []byte(plainPassword))
 	if err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
@@ -63,12 +64,12 @@ func IsAnonymous(user *User) bool {
 }
 
 func (m *UserModel) Insert(user *User) error {
-	stmt := `INSERT INTO users (first_name, last_name, email, password_hash) VALUES($1, $2, $3, $4) RETURNING id, created_at, is_active`
+	stmt := `INSERT INTO users (first_name, last_name, email, password_hash, role) VALUES($1, $2, $3, $4, $5) RETURNING id, created_at, is_active`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword}
+	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.Role}
 
 	err := m.DB.QueryRowContext(ctx, stmt, args...).Scan(&user.ID, &user.CreatedAt, &user.IsActive)
 	if err != nil {
@@ -90,14 +91,14 @@ func (m *UserModel) GetUser(id int64) (*User, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	stmt := `SELECT id, first_name, last_name, email, created_at FROM users WHERE id = $1`
+	stmt := `SELECT id, first_name, last_name, email, created_at, is_active, role, restaurant_id FROM users WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt)
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt, &user.IsActive, &user.Role, &user.RestaurantID)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -112,12 +113,12 @@ func (m *UserModel) GetUser(id int64) (*User, error) {
 }
 
 func (m *UserModel) Update(user *User) error {
-	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password_hash = $4, is_active = $5, last_updated = NOW() where id = $6 `
+	stmt := `UPDATE users SET first_name = $1, last_name = $2, email = $3, password_hash = $4, is_active = $5, restaurant_id = $6, last_updated = NOW() where id = $7`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.IsActive, user.ID}
+	args := []any{user.FirstName, user.LastName, user.Email, user.Password.hashPassword, user.IsActive, user.RestaurantID, user.ID}
 
 	result, err := m.DB.ExecContext(ctx, stmt, args...)
 	if err != nil {
