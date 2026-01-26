@@ -83,3 +83,38 @@ func (app *application) authorizationRequierd(w http.ResponseWriter, r *http.Req
 
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
+
+func (app *application) requiredActivationResponse(w http.ResponseWriter, r *http.Request) {
+	message := "you have to activate your account to access this resource"
+
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "you are not premitted to visit this resource"
+
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (app *application) userHasRestaurant(w http.ResponseWriter, r *http.Request) {
+	message := "user already has a restaurant"
+
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, message)
+}
+func (app *application) idNotSame(w http.ResponseWriter, r *http.Request) {
+	message := "you can't see other users' informations"
+
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, message)
+}
+
+func (app *application) noCategoryIsAvailable(w http.ResponseWriter, r *http.Request) {
+	message := "There is no restaurant and category to be shown"
+
+	app.errorResponse(w, r, http.StatusOK, message)
+}
+
+func (app *application) noMenuAvailable(w http.ResponseWriter, r *http.Request) {
+	message := "There is no menu to be shown"
+
+	app.errorResponse(w, r, http.StatusOK, message)
+}
