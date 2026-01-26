@@ -11,9 +11,9 @@ type contextKey string
 
 const userContextKey = contextKey("user")
 
-func (app *application) getUserContext(r *http.Request) models.User {
+func (app *application) getUserContext(r *http.Request) *models.User {
 
-	user, ok := r.Context().Value(userContextKey).(models.User)
+	user, ok := r.Context().Value(userContextKey).(*models.User)
 	if !ok {
 		panic("missing user value in the request context")
 	}
