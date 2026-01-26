@@ -98,13 +98,12 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		authorizationHeader := r.Header.Get("Authorization")
 		if authorizationHeader == "" {
-			app.setUserContext(w, r, models.AnonymousUser)
-			println("empty user")
+			r = app.setUserContext(w, r, models.AnonymousUser)
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		headerParts := strings.Split(authorizationHeader, "")
+		headerParts := strings.Split(authorizationHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 			app.invalidAuthenticationTokenResponse(w, r)
 			return
@@ -144,16 +143,83 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 }
 
-func (app *application) requiredAutheicatedUser(next http.HandlerFunc) http.Handler {
+func (app *application) requiredAutheicatedUser(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		user := app.getUserContext(r)
-		if models.IsAnonymous(&user) {
+		if models.IsAnonymous(user) {
 			app.authorizationRequierd(w, r)
 			return
 		}
 
 		next.ServeHTTP(w, r)
 
+	})
+}
+
+func (app *application) requiredActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		user := app.getUserContext(r)
+		if !user.IsActive {
+			app.requiredActivationResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requiredAutheicatedUser(fn)
+}
+
+func (app *application) requirePermissions(code string, next http.HandlerFunc) http.HandlerFunc {
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		user := app.getUserContext(r)
+		if models.IsAnonymous(user) {
+			println("not premitted 1")
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		permissions, err := app.models.Permissions.GetForAllUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		fmt.Println(permissions)
+
+		println(code)
+		if !permissions.Include(code) {
+			println("not premitted 2")
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+
+	return app.requiredActivatedUser(fn)
+
+}
+
+func (app *application) userIdAuthenticate(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, err := app.readIDParam(r)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		user := app.getUserContext(r)
+		println(user.ID, id)
+		if user.ID != id {
+			app.idNotSame(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }
