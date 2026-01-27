@@ -2,12 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/models"
 	"github.com/geekilx/restaurantAPI/internal/validator"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -307,7 +307,6 @@ func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	fmt.Println(input.Password)
 	ok, err := user.Password.Matches(input.Password)
 	if err != nil || !ok {
 		app.serverErrorResponse(w, r, err)
@@ -321,6 +320,82 @@ func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.R
 	}
 
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"token": token.PlainToken, "expiry": token.Expiry.Format(time.RFC822)}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
+func (app *application) resetUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
+
+	userID, err := app.readIDParam(r)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	currentUser := app.getUserContext(r)
+	if currentUser.ID != userID {
+		app.notPermittedResponse(w, r)
+		return
+	}
+
+	var input struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	user, err := app.models.Users.GetUser(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.noUserFound(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	matches, err := user.Password.Matches(input.OldPassword)
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			app.invalidPasswordForUser(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if !matches {
+		app.invalidPasswordForUser(w, r)
+		return
+	}
+
+	v := validator.New()
+
+	if models.ValidatePassword(v, input.NewPassword); !v.Valid() {
+		app.failedValidationResponse(w, r, v)
+		return
+	}
+
+	err = app.models.Users.ChangePassword(userID, input.NewPassword)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.noUserFound(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "password succesfully updated"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

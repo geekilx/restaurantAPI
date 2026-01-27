@@ -118,3 +118,9 @@ func (app *application) noMenuAvailable(w http.ResponseWriter, r *http.Request) 
 
 	app.errorResponse(w, r, http.StatusOK, message)
 }
+
+func (app *application) invalidPasswordForUser(w http.ResponseWriter, r *http.Request) {
+	message := "Password is not correct for the user"
+
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, message)
+}

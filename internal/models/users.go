@@ -91,14 +91,14 @@ func (m *UserModel) GetUser(id int64) (*User, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	stmt := `SELECT id, first_name, last_name, email, created_at, is_active, role, restaurant_id FROM users WHERE id = $1`
+	stmt := `SELECT id, first_name, last_name, email, created_at, is_active, role, restaurant_id, password_hash FROM users WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt, &user.IsActive, &user.Role, &user.RestaurantID)
+	err := m.DB.QueryRowContext(ctx, stmt, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.CreatedAt, &user.IsActive, &user.Role, &user.RestaurantID, &user.Password.hashPassword)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -187,11 +187,50 @@ func (m *UserModel) GetUserByEmail(email string) (*User, error) {
 
 }
 
-func ValidateUsers(v *validator.Validator, user User, password string) {
+func (m *UserModel) ChangePassword(id int64, newPassword string) error {
+
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 12)
+	if err != nil {
+		return err
+	}
+
+	stmt := `UPDATE users SET password_hash = $1, last_updated = NOW() WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.ExecContext(ctx, stmt, hashPassword, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+
+}
+
+func ValidatePassword(v *validator.Validator, password string) {
+	v.Check(len(password) == 0, "password", "password cannot be empty")
+	v.Check(len(password) < 6, "password", "password must be greater than 6 characters")
+}
+
+func ValidateInformation(v *validator.Validator, user User, password string) {
 	v.Check(user.FirstName == "", "firstName", "you have to provide first name")
 	v.Check(user.LastName == "", "lastName", "you have to provide last name")
 	v.Check(len(user.FirstName) > 50, "firstName", "first name must be greater than 0 and lees than 50 characters")
 	v.Check(len(user.LastName) > 50, "lastName", "last name must be greater than 0 and lees than 50 characters")
+}
+
+func ValidateUsers(v *validator.Validator, user User, password string) {
+	ValidateInformation(v, user, password)
 	v.Check(!validator.CheckEmail(user.Email, validator.EmailRX), "email", "you should provide a valid email address")
-	v.Check(len(password) < 6, "password", "password must be greater than 6 characters")
+	ValidatePassword(v, password)
 }
