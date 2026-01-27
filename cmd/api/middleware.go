@@ -178,7 +178,6 @@ func (app *application) requirePermissions(code string, next http.HandlerFunc) h
 
 		user := app.getUserContext(r)
 		if models.IsAnonymous(user) {
-			println("not premitted 1")
 			app.notPermittedResponse(w, r)
 			return
 		}
@@ -189,11 +188,7 @@ func (app *application) requirePermissions(code string, next http.HandlerFunc) h
 			return
 		}
 
-		fmt.Println(permissions)
-
-		println(code)
 		if !permissions.Include(code) {
-			println("not premitted 2")
 			app.notPermittedResponse(w, r)
 			return
 		}
@@ -203,23 +198,4 @@ func (app *application) requirePermissions(code string, next http.HandlerFunc) h
 
 	return app.requiredActivatedUser(fn)
 
-}
-
-func (app *application) userIdAuthenticate(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, err := app.readIDParam(r)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-			return
-		}
-
-		user := app.getUserContext(r)
-		println(user.ID, id)
-		if user.ID != id {
-			app.idNotSame(w, r)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }

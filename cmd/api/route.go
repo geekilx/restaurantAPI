@@ -20,7 +20,7 @@ func (app *application) route() http.Handler {
 	})
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthCheck)
-	router.HandlerFunc(http.MethodGet, "/v1/users/:id", app.requirePermissions("restaurant:read", app.userIdAuthenticate(app.userInformationHandler)))
+	router.HandlerFunc(http.MethodGet, "/v1/users/:id", app.requirePermissions("restaurant:read", app.userInformationHandler))
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.createUserHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/users/:id", app.requirePermissions("restaurant:read", app.updateUserHandler))
 	router.HandlerFunc(http.MethodPatch, "/v1/resetpassword/:id", app.requirePermissions("restaurant:read", app.resetUserPasswordHandler))

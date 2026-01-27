@@ -144,11 +144,6 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 		user.Email = input.Email
 	}
 
-	//TODO: adding a forget password functionalitty
-	// if input.Password != "" {
-	// 	user.Password.Set(input.Password)
-	// }
-
 	err = app.models.Users.Update(user)
 	if err != nil {
 		switch {
@@ -174,7 +169,12 @@ func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	//TODO: adding passowrd check after adding user authentication
+	user := app.getUserContext(r)
+	if user.ID != id {
+		app.notPermittedResponse(w, r)
+		return
+	}
+
 	err = app.models.Users.Delete(id)
 	if err != nil {
 		switch {
@@ -201,7 +201,13 @@ func (app *application) userInformationHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	user, err := app.models.Users.GetUser(id)
+	user := app.getUserContext(r)
+	if user.ID != id {
+		app.notPermittedResponse(w, r)
+		return
+	}
+
+	user, err = app.models.Users.GetUser(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
@@ -212,7 +218,6 @@ func (app *application) userInformationHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	//TODO: adding user authentication in order to keep other users from seeing another user informations is URGENT
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
