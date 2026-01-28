@@ -9,15 +9,15 @@ import (
 	"github.com/geekilx/restaurantAPI/internal/validator"
 )
 
-var input struct {
-	Name        string `json:"name"`
-	Country     string `json:"country"`
-	FullAddress string `json:"full_address"`
-	Cuisine     string `json:"cuisine"`
-	Status      string `json:"status"`
-}
-
 func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.Request) {
+
+	var input struct {
+		Name        string `json:"name"`
+		Country     string `json:"country"`
+		FullAddress string `json:"full_address"`
+		Cuisine     string `json:"cuisine"`
+		Status      string `json:"status"`
+	}
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -101,6 +101,14 @@ func (app *application) restaurantUpdateHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
+	}
+
+	var input struct {
+		Name        string `json:"name"`
+		Country     string `json:"country"`
+		FullAddress string `json:"full_address"`
+		Cuisine     string `json:"cuisine"`
+		Status      string `json:"status"`
 	}
 
 	err = app.readJSON(w, r, &input)
