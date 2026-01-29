@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -39,15 +40,17 @@ func (m *MenuModel) Insert(menu *Menu) error {
 
 }
 
-func (m *MenuModel) GetAll() ([]*Menu, error) {
-	stmt := `SELECT m.id, m.category_id, r.name, m.name, m.description, m.price_cent, m.is_available, m.created_at FROM menu m
+func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
+	stmt := fmt.Sprintf(`SELECT m.id, m.category_id, r.name, m.name, m.description, m.price_cent, m.is_available, m.created_at FROM menu m
 	INNER JOIN categories c on c.id = m.category_id
-	INNER JOIN restaurant r on r.id = c.restaurant_id`
+	INNER JOIN restaurant r on r.id = c.restaurant_id
+	WHERE (to_tsvector('simple', m.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, stmt)
+	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
 		return nil, err
 	}

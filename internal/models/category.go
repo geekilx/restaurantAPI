@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -49,13 +50,15 @@ func (m *CategoryModel) CategoryExists(name string, restaurantID int64) bool {
 
 }
 
-func (m *CategoryModel) GetAll() ([]*Category, error) {
-	stmt := `SELECT c.id, r.name, c.restaurant_id, c.name, c.created_at FROM categories c inner join restaurant r on r.id = c.restaurant_id`
+func (m *CategoryModel) GetAll(name string, f Filters) ([]*Category, error) {
+	stmt := fmt.Sprintf(`SELECT c.id, r.name, c.restaurant_id, c.name, c.created_at FROM categories c inner join restaurant r on r.id = c.restaurant_id
+		WHERE (to_tsvector('simple', c.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, stmt)
+	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
 		return nil, err
 	}

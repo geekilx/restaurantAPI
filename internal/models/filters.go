@@ -1,0 +1,45 @@
+package models
+
+import (
+	"strings"
+
+	"github.com/geekilx/restaurantAPI/internal/validator"
+)
+
+type Filters struct {
+	Page         int
+	PageSize     int
+	Sort         string
+	SortSafeList []string
+}
+
+func (f Filters) sortColumn() string {
+	for _, safeSort := range f.SortSafeList {
+		if f.Sort == safeSort {
+			return strings.TrimPrefix(f.Sort, "-")
+		}
+	}
+
+	panic("unsafe sort parameter: " + f.Sort)
+}
+
+func (f Filters) sortDirection() string {
+	if strings.HasPrefix(f.Sort, "-") {
+		return "DESC"
+	}
+	return "ASC"
+}
+
+func ValidateFilters(v *validator.Validator, f Filters) {
+	v.Check(f.Page <= 10_000_000 && f.Page >= 1, "page", "page must be between 1 and 10,000,000")
+	v.Check(f.PageSize <= 100 && f.Page >= 1, "page_size", "page size must be between 1 and 100")
+	v.Check(validator.PermittedValue(f.Sort, f.SortSafeList...), "sort", "invalid sort value")
+}
+
+func (f Filters) Limit() int {
+	return f.PageSize
+}
+
+func (f Filters) Offset() int {
+	return (f.Page - 1) * f.PageSize
+}

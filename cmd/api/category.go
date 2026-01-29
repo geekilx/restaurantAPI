@@ -49,7 +49,22 @@ func (app *application) createCategoryHandler(w http.ResponseWriter, r *http.Req
 
 func (app *application) allCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
-	categories, err := app.models.Categories.GetAll()
+	var input struct {
+		name string
+		models.Filters
+	}
+
+	v := validator.New()
+
+	qs := r.URL.Query()
+
+	input.name = app.readString(qs, "name", "")
+	input.Page = app.readInt(qs, "page", 1, v)
+	input.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Sort = app.readString(qs, "sort", "id")
+	input.SortSafeList = []string{"id", "name", "restaurant_id", "-id", "-name", "-restaurant_id"}
+
+	categories, err := app.models.Categories.GetAll(input.name, input.Filters)
 	if err != nil {
 		app.noCategoryIsAvailable(w, r)
 		return

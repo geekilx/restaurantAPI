@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/geekilx/restaurantAPI/internal/validator"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -91,4 +93,29 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func (app *application) readString(qs url.Values, key, defaultValue string) string {
+
+	val := qs.Get(key)
+	if val == "" {
+		return defaultValue
+	}
+	return val
+}
+
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+
+	val := qs.Get(key)
+	if val == "" {
+		return defaultValue
+	}
+
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		v.AddError(key, "must be integer value")
+		return defaultValue
+	}
+	return intVal
+
 }

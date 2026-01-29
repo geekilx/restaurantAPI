@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -47,12 +48,14 @@ func (m *RestaurantModel) Insert(restaurant *Restaurant) (int64, error) {
 
 }
 
-func (m *RestaurantModel) GetAll() ([]*Restaurant, error) {
-	stmt := `SELECT * FROM restaurant`
+func (m *RestaurantModel) GetAll(name string, f Filters) ([]*Restaurant, error) {
+	stmt := fmt.Sprintf(`SELECT * FROM restaurant WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, stmt)
+	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
 		return nil, err
 	}

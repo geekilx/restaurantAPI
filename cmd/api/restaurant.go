@@ -79,7 +79,23 @@ func (app *application) restaurantCreateHandler(w http.ResponseWriter, r *http.R
 }
 
 func (app *application) restaurantsListHandler(w http.ResponseWriter, r *http.Request) {
-	restaraunts, err := app.models.Restaurants.GetAll()
+
+	var input struct {
+		name string
+		models.Filters
+	}
+
+	v := validator.New()
+
+	qs := r.URL.Query()
+
+	input.name = app.readString(qs, "name", "")
+	input.Page = app.readInt(qs, "page", 1, v)
+	input.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Sort = app.readString(qs, "sort", "id")
+	input.SortSafeList = []string{"id", "name", "country", "full_address", "cuisine", "status", "-id", "-name", "-country", "-full_address", "-cuisine", "-status"}
+
+	restaraunts, err := app.models.Restaurants.GetAll(input.name, input.Filters)
 
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

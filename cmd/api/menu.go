@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/geekilx/restaurantAPI/internal/models"
+	"github.com/geekilx/restaurantAPI/internal/validator"
 )
 
 func (app *application) createMenuHandler(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +54,22 @@ func (app *application) createMenuHandler(w http.ResponseWriter, r *http.Request
 }
 func (app *application) menuListHandler(w http.ResponseWriter, r *http.Request) {
 
-	menus, err := app.models.Menu.GetAll()
+	var input struct {
+		name string
+		models.Filters
+	}
+
+	v := validator.New()
+
+	qs := r.URL.Query()
+
+	input.name = app.readString(qs, "name", "")
+	input.Page = app.readInt(qs, "page", 1, v)
+	input.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Sort = app.readString(qs, "sort", "id")
+	input.SortSafeList = []string{"id", "name", "description", "price_cent", "is_available", "-id", "-name", "-description", "-price_cent", "-is_available"}
+
+	menus, err := app.models.Menu.GetAll(input.name, input.Filters)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
