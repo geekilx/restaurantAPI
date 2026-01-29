@@ -20,7 +20,7 @@ func (f Filters) sortColumn() string {
 		}
 	}
 
-	panic("unsafe sort parameter: " + f.Sort)
+	return "id"
 }
 
 func (f Filters) sortDirection() string {

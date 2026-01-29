@@ -41,11 +41,27 @@ func (m *MenuModel) Insert(menu *Menu) error {
 }
 
 func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
+
+	sortColumn := f.sortColumn()
+	safeSortColumn := "m.id" // Default fallback
+
+	switch sortColumn {
+	case "name":
+		safeSortColumn = "m.name"
+	case "price_cent":
+		safeSortColumn = "m.price_cent"
+	case "restaurant_name": // Use the alias 'r' for the joined table!
+		safeSortColumn = "r.name"
+	case "category_id":
+		safeSortColumn = "m.category_id"
+		// Add other cases here
+	}
+
 	stmt := fmt.Sprintf(`SELECT m.id, m.category_id, r.name, m.name, m.description, m.price_cent, m.is_available, m.created_at FROM menu m
 	INNER JOIN categories c on c.id = m.category_id
 	INNER JOIN restaurant r on r.id = c.restaurant_id
 	WHERE (to_tsvector('simple', m.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
-	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
+	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, safeSortColumn, f.sortDirection(), f.Limit(), f.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
