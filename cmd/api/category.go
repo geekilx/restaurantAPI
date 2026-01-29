@@ -64,13 +64,13 @@ func (app *application) allCategoryHandler(w http.ResponseWriter, r *http.Reques
 	input.Sort = app.readString(qs, "sort", "id")
 	input.SortSafeList = []string{"id", "name", "restaurant_id", "-id", "-name", "-restaurant_id"}
 
-	categories, err := app.models.Categories.GetAll(input.name, input.Filters)
+	categories, metadata, err := app.models.Categories.GetAll(input.name, input.Filters)
 	if err != nil {
 		app.noCategoryIsAvailable(w, r)
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"Categories": categories}, nil)
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"Categories": categories, "metadata": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

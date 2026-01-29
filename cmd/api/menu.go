@@ -69,7 +69,12 @@ func (app *application) menuListHandler(w http.ResponseWriter, r *http.Request) 
 	input.Sort = app.readString(qs, "sort", "id")
 	input.SortSafeList = []string{"id", "name", "description", "price_cent", "is_available", "-id", "-name", "-description", "-price_cent", "-is_available"}
 
-	menus, err := app.models.Menu.GetAll(input.name, input.Filters)
+	if models.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v)
+		return
+	}
+
+	menus, metadata, err := app.models.Menu.GetAll(input.name, input.Filters)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -79,7 +84,7 @@ func (app *application) menuListHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"menus": menus}, nil)
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"menus": menus, "metadata": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

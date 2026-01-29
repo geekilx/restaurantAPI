@@ -95,7 +95,7 @@ func (app *application) restaurantsListHandler(w http.ResponseWriter, r *http.Re
 	input.Sort = app.readString(qs, "sort", "id")
 	input.SortSafeList = []string{"id", "name", "country", "full_address", "cuisine", "status", "-id", "-name", "-country", "-full_address", "-cuisine", "-status"}
 
-	restaraunts, err := app.models.Restaurants.GetAll(input.name, input.Filters)
+	restaraunts, metadata, err := app.models.Restaurants.GetAll(input.name, input.Filters)
 
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -107,7 +107,7 @@ func (app *application) restaurantsListHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"restaurants": restaraunts}, nil)
+	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"restaurants": restaraunts, "metadata": metadata}, nil)
 
 }
 

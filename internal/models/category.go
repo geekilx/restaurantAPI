@@ -50,8 +50,8 @@ func (m *CategoryModel) CategoryExists(name string, restaurantID int64) bool {
 
 }
 
-func (m *CategoryModel) GetAll(name string, f Filters) ([]*Category, error) {
-	stmt := fmt.Sprintf(`SELECT c.id, r.name, c.restaurant_id, c.name, c.created_at FROM categories c inner join restaurant r on r.id = c.restaurant_id
+func (m *CategoryModel) GetAll(name string, f Filters) ([]*Category, Metadata, error) {
+	stmt := fmt.Sprintf(`SELECT count(*) OVER(), c.id, r.name, c.restaurant_id, c.name, c.created_at FROM categories c inner join restaurant r on r.id = c.restaurant_id
 		WHERE (to_tsvector('simple', c.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
 	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
 
@@ -60,22 +60,25 @@ func (m *CategoryModel) GetAll(name string, f Filters) ([]*Category, error) {
 
 	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
 	var categories []*Category
+	var totalRecords int
 	for rows.Next() {
 		var category Category
 
-		err := rows.Scan(&category.ID, &category.RestaurantName, &category.RestaurantID, &category.Name, &category.CreatedAt)
+		err := rows.Scan(&totalRecords, &category.ID, &category.RestaurantName, &category.RestaurantID, &category.Name, &category.CreatedAt)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 
 		categories = append(categories, &category)
 	}
 
-	return categories, nil
+	metadata := CalculateMetadata(totalRecords, f.Page, f.PageSize)
+
+	return categories, metadata, nil
 
 }
 

@@ -40,7 +40,7 @@ func (m *MenuModel) Insert(menu *Menu) error {
 
 }
 
-func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
+func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, Metadata, error) {
 
 	sortColumn := f.sortColumn()
 	safeSortColumn := "m.id" // Default fallback
@@ -57,7 +57,7 @@ func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
 		// Add other cases here
 	}
 
-	stmt := fmt.Sprintf(`SELECT m.id, m.category_id, r.name, m.name, m.description, m.price_cent, m.is_available, m.created_at FROM menu m
+	stmt := fmt.Sprintf(`SELECT count(*) OVER(), m.id, m.category_id, r.name, m.name, m.description, m.price_cent, m.is_available, m.created_at FROM menu m
 	INNER JOIN categories c on c.id = m.category_id
 	INNER JOIN restaurant r on r.id = c.restaurant_id
 	WHERE (to_tsvector('simple', m.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
@@ -68,21 +68,24 @@ func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
 
 	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
+	var totalRecords int
 	var menus []*Menu
 	for rows.Next() {
 		var menu Menu
 
-		err := rows.Scan(&menu.ID, &menu.CategoryID, &menu.RestaurantName, &menu.Name, &menu.Description, &menu.PriceCent, &menu.IsAvaiable, &menu.CreatedAt)
+		err := rows.Scan(&totalRecords, &menu.ID, &menu.CategoryID, &menu.RestaurantName, &menu.Name, &menu.Description, &menu.PriceCent, &menu.IsAvaiable, &menu.CreatedAt)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 		menus = append(menus, &menu)
 	}
 
-	return menus, nil
+	metdata := CalculateMetadata(totalRecords, f.Page, f.PageSize)
+
+	return menus, metdata, nil
 
 }
 

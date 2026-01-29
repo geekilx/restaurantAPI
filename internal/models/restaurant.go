@@ -48,8 +48,8 @@ func (m *RestaurantModel) Insert(restaurant *Restaurant) (int64, error) {
 
 }
 
-func (m *RestaurantModel) GetAll(name string, f Filters) ([]*Restaurant, error) {
-	stmt := fmt.Sprintf(`SELECT * FROM restaurant WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+func (m *RestaurantModel) GetAll(name string, f Filters) ([]*Restaurant, Metadata, error) {
+	stmt := fmt.Sprintf(`SELECT count(*) OVER(), * FROM restaurant WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
 		ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, f.sortColumn(), f.sortDirection(), f.Limit(), f.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -57,26 +57,29 @@ func (m *RestaurantModel) GetAll(name string, f Filters) ([]*Restaurant, error) 
 
 	rows, err := m.DB.QueryContext(ctx, stmt, name)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
 	defer rows.Close()
 
+	var totalRecords int
 	var restaurants []*Restaurant
 
 	for rows.Next() {
 		var restaurant Restaurant
 
-		err := rows.Scan(&restaurant.ID, &restaurant.Name, &restaurant.Country, &restaurant.FullAddress, &restaurant.Cuisine, &restaurant.Status, &restaurant.CreatedAt, &restaurant.UpdatedAt)
+		err := rows.Scan(&totalRecords, &restaurant.ID, &restaurant.Name, &restaurant.Country, &restaurant.FullAddress, &restaurant.Cuisine, &restaurant.Status, &restaurant.CreatedAt, &restaurant.UpdatedAt)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 
 		restaurants = append(restaurants, &restaurant)
 
 	}
 
-	return restaurants, nil
+	metadata := CalculateMetadata(totalRecords, f.Page, f.PageSize)
+
+	return restaurants, metadata, nil
 
 }
 
