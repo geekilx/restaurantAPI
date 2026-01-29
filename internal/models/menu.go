@@ -61,7 +61,7 @@ func (m *MenuModel) GetAll(name string, f Filters) ([]*Menu, error) {
 	INNER JOIN categories c on c.id = m.category_id
 	INNER JOIN restaurant r on r.id = c.restaurant_id
 	WHERE (to_tsvector('simple', m.name) @@ plainto_tsquery('simple', $1) OR $1 = '')
-	ORDER BY %s %s, id ASC LIMIT %d OFFSET %d`, safeSortColumn, f.sortDirection(), f.Limit(), f.Offset())
+	ORDER BY %s %s, m.id ASC LIMIT %d OFFSET %d`, safeSortColumn, f.sortDirection(), f.Limit(), f.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
