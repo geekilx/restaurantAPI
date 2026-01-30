@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -18,6 +20,8 @@ func (app *application) route() http.Handler {
 
 		app.errorResponse(w, r, http.StatusMethodNotAllowed, "Method not allowed for this reousrce")
 	})
+
+	router.Handler(http.MethodGet, "/swagger/*any", httpSwagger.WrapHandler)
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthCheck)
 	router.HandlerFunc(http.MethodGet, "/v1/users/:id", app.requirePermissions("restaurant:read", app.userInformationHandler))

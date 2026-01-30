@@ -46,6 +46,11 @@ type application struct {
 	wg     sync.WaitGroup
 }
 
+// @title Restaurant API
+// @version 1.0
+// @description This is a sample server for a restaurant management system.
+// @host localhost:4000
+// @BasePath /v1
 func main() {
 	var cfg config
 

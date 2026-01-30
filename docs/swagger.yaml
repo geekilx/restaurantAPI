@@ -1,0 +1,68 @@
+basePath: /v1
+definitions:
+  main.jsFmt:
+    additionalProperties: {}
+    type: object
+  models.MenuWithCategoryName:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_available:
+        type: boolean
+      name:
+        type: string
+      price_cent:
+        type: number
+      restaurant_name:
+        type: string
+    type: object
+host: localhost:4000
+info:
+  contact: {}
+  description: This is a sample server for a restaurant management system.
+  title: Restaurant API
+  version: "1.0"
+paths:
+  /restaurants/{id}:
+    get:
+      consumes:
+      - application/json
+      description: get string by ID
+      parameters:
+      - description: Restaurant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/main.jsFmt'
+            - properties:
+                menus:
+                  items:
+                    $ref: '#/definitions/models.MenuWithCategoryName'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.jsFmt'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.jsFmt'
+      summary: Get a single restaurant
+      tags:
+      - restaurants
+swagger: "2.0"

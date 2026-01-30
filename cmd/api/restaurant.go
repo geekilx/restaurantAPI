@@ -212,6 +212,17 @@ func (app *application) restaurantDeleteHandler(w http.ResponseWriter, r *http.R
 
 }
 
+// ShowRestaurant godoc
+// @Summary      Get a single restaurant
+// @Description  get string by ID
+// @Tags         restaurants
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Restaurant ID"
+// @Success      200  {object}  jsFmt{menus=[]models.MenuWithCategoryName}
+// @Failure      404  {object}  jsFmt
+// @Failure      500  {object}  jsFmt
+// @Router       /restaurants/{id} [get]
 func (app *application) showRestaurantHandler(w http.ResponseWriter, r *http.Request) {
 
 	restID, err := app.readIDParam(r)
