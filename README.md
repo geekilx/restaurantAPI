@@ -163,6 +163,3 @@ go run ./cmd/api
 
 Distributed under the MIT License.
 
-```
-
-```
