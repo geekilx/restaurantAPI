@@ -92,7 +92,34 @@ The application is configured using command-line flags. You can also use environ
 | `-limiter-rps` | `2` | Rate limiter requests per second |
 | `-limiter-burst` | `4` | Rate limiter burst capacity |
 
+
 ## 🏃‍♂️ Running the Application
+
+### Option 1: Using Docker Compose (Recommended)
+
+You can easily spin up the application and its connected PostgreSQL database simultaneously using Docker. 
+
+**Prerequisites:**
+* Docker and Docker Compose installed on your system.
+
+**Instructions:**
+1. From the root of your project, build and start the containers:
+   ```bash
+   docker-compose up --build
+
+```
+
+2. The API server will be available at `http://localhost:4000`.
+3. The PostgreSQL database will be mapped to port `5435` on your host machine.
+
+To stop the containers and remove them, press `Ctrl+C` (if running attached) or run:
+
+```bash
+docker-compose down
+
+```
+
+### Option 2: Running Locally (Without Docker)
 
 You can run the application directly using `go run`. It is recommended to set the DSN as an environment variable first.
 
@@ -111,7 +138,6 @@ $env:RESTAURANT_DB_DSN='postgres://postgres:password@localhost/restaurant_api?ss
 go run ./cmd/api
 
 ```
-
 ## 🔗 API Endpoints
 
 ### Health Check
