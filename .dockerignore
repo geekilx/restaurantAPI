@@ -1,0 +1,10 @@
+# Ignore the database data directory
+postgres-data
+vendor
+
+# Ignore git history and other unnecessary files
+readme.md
+.git
+.gitignore
+.env
+.air.toml
