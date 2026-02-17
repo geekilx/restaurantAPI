@@ -1,3 +1,4 @@
 vendor/
 .air.toml
 postgres-data/
+.postgres-data/

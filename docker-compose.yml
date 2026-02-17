@@ -7,15 +7,17 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - RESTAURANT_DB_DSN=postgres://username:password@postgres:5432/restaurant?sslmode=disable
+      - RESTAURANT_DB_DSN=postgres://ilx:ilia2323@postgres:5432/restaurant?sslmode=disable
+      - REDIS_ADDR=redis:6379
       - SMTP_HOST=mailtrap.io
       - SMTP_PORT=2525
-      - SMTP_USERNAME=372d553c29c9c6
-      - SMTP_PASSWORD=3fb3fd1b008ee2
+      - SMTP_USERNAME=10aa30c034aede
+      - SMTP_PASSWORD=992bab464f88e9
       - SMTP_SENDER=restaurantAPI <no-reply@restaurantAPI.ilx.net>
       - LIMITER_ENABLED=true
       - LIMITER_RPS=2
       - LIMITER_BURST=4
+      - PORT=4000
     depends_on:
     - postgres
     restart: unless-stopped
@@ -26,13 +28,18 @@ services:
     image: postgres:15-alpine
     environment:
       - POSTGRES_DB=restaurant
-      - POSTGRES_USER=username
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=ilx
+      - POSTGRES_PASSWORD=ilia2323
     ports:
       - "5435:5432"
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ./.postgres-data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  redis:
+    image: redis:8.6-alpine
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
 
   # pgadmin:
   #   image: dpage/pgadmin4

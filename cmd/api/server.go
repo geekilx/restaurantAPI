@@ -14,7 +14,7 @@ import (
 
 func (app *application) serve() error {
 	srv := http.Server{
-		Addr:         fmt.Sprintf(":%d", app.cfg.port),
+		Addr:         fmt.Sprintf(":%d", app.cfg.Port),
 		Handler:      app.route(),
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  5 * time.Second,
@@ -47,7 +47,7 @@ func (app *application) serve() error {
 		shutdownError <- nil
 
 	}()
-	app.logger.Info("Starting server", "addr", app.cfg.port)
+	app.logger.Info("Starting server", "addr", app.cfg.Port)
 
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {

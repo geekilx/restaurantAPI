@@ -79,7 +79,7 @@ func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter
 }
 
 func (app *application) authorizationRequierd(w http.ResponseWriter, r *http.Request) {
-	message := "you don't have the right permission to visit this page"
+	message := "you have to specify a valid authentication token to access this resource"
 
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
