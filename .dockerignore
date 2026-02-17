@@ -1,6 +1,9 @@
 # Ignore the database data directory
 postgres-data
+.postgres-data
+
 vendor
+docs
 
 # Ignore git history and other unnecessary files
 readme.md
@@ -8,3 +11,4 @@ readme.md
 .gitignore
 .env
 .air.toml
+.idea

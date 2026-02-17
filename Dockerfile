@@ -17,6 +17,7 @@ RUN go build -o restaurant ./cmd/api
 # second stage
 FROM scratch
 
+
 COPY --from=builder /build/restaurant .
 
 # Start the application
