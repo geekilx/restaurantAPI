@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/models"
@@ -96,6 +98,8 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	println("added permission for user: " + user.FirstName)
+
 	err = app.writeJSON(w, r, http.StatusCreated, jsFmt{"user": user, "message": "Please check your email in order to activate your account"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -155,6 +159,9 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// delete user id in redis in order to update the cache
+	app.redis.Del(r.Context(), "user:"+strconv.FormatInt(user.ID, 10))
+
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "user successfully updated"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -207,16 +214,16 @@ func (app *application) userInformationHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	user, err = app.models.Users.GetUser(id)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrRecordNotFound):
-			app.noUserFound(w, r)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
-		return
-	}
+	// user, err = app.models.Users.GetUser(id)
+	// if err != nil {
+	// 	switch {
+	// 	case errors.Is(err, models.ErrRecordNotFound):
+	// 		app.noUserFound(w, r)
+	// 	default:
+	// 		app.serverErrorResponse(w, r, err)
+	// 	}
+	// 	return
+	// }
 
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"user": user}, nil)
 	if err != nil {
@@ -282,6 +289,9 @@ func (app *application) userActivateHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// delete user id in redis in order to update the cache
+	app.redis.Del(r.Context(), "user:"+strconv.FormatInt(user.ID, 10))
+
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"message": "user successfully updated"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -322,6 +332,22 @@ func (app *application) authenticateUserHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
+	}
+
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.redis.Set(r.Context(), "token:"+token.PlainToken, user.ID, 24*time.Hour).Err()
+	if err != nil {
+		app.logger.Error("failed to cache user id", "Error", err)
+	}
+
+	err = app.redis.Set(r.Context(), "user:"+strconv.FormatInt(user.ID, 10), userBytes, 24*time.Hour).Err()
+	if err != nil {
+		app.logger.Error("failed to cache user", "Error", err)
 	}
 
 	err = app.writeJSON(w, r, http.StatusOK, jsFmt{"token": token.PlainToken, "expiry": token.Expiry.Format(time.RFC822)}, nil)

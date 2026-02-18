@@ -166,14 +166,14 @@ func (m *UserModel) Delete(id int64) error {
 }
 
 func (m *UserModel) GetUserByEmail(email string) (*User, error) {
-	stmt := `SELECT id, password_hash FROM users WHERE email = $1`
+	stmt := `SELECT id, first_name, last_name, email, password_hash, is_active, role, restaurant_id FROM users WHERE email = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := m.DB.QueryRowContext(ctx, stmt, email).Scan(&user.ID, &user.Password.hashPassword)
+	err := m.DB.QueryRowContext(ctx, stmt, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Password.hashPassword, &user.IsActive, &user.Role, &user.RestaurantID)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

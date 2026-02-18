@@ -1,17 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/geekilx/restaurantAPI/internal/models"
 	"github.com/geekilx/restaurantAPI/internal/validator"
-	"golang.org/x/time/rate"
 )
 
 func (app *application) panicRecover(next http.Handler) http.Handler {
@@ -32,32 +32,6 @@ func (app *application) panicRecover(next http.Handler) http.Handler {
 }
 
 func (app *application) rateLimit(next http.Handler) http.Handler {
-	type client struct {
-		limiter  *rate.Limiter
-		lastSeen time.Time
-	}
-
-	var (
-		mu      sync.Mutex
-		clients = make(map[string]*client)
-	)
-
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-
-			mu.Lock()
-
-			for ip, client := range clients {
-				if time.Since(client.lastSeen) > 3*time.Second {
-					delete(clients, ip)
-				}
-			}
-
-			mu.Unlock()
-		}
-	}()
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if app.cfg.Limiter.Enabled {
@@ -67,23 +41,28 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 				return
 			}
 
-			mu.Lock()
+			currentSecond := time.Now().Unix()
 
-			if _, found := clients[ip]; !found {
-				clients[ip] = &client{limiter: rate.NewLimiter(rate.Limit(app.cfg.Limiter.Rps), app.cfg.Limiter.Burst)}
+			key := fmt.Sprintf("rateLimit:%s:%d", ip, currentSecond)
+
+			ctx := r.Context()
+			pipe := app.redis.TxPipeline()
+
+			incr := pipe.Incr(ctx, key)
+			pipe.Expire(ctx, key, 5*time.Second)
+
+			_, err = pipe.Exec(ctx)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
 			}
 
-			clients[ip].lastSeen = time.Now()
-
-			if !clients[ip].limiter.Allow() {
-				mu.Unlock()
+			if incr.Val() > int64(app.cfg.Limiter.Rps) {
 				app.rateLimitExceededResponse(w, r)
 				return
 			}
 
-			mu.Unlock()
 		}
-
 		next.ServeHTTP(w, r)
 
 	})
@@ -118,25 +97,54 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		userID, err := app.models.Tokens.GetByToken(token)
-		if err != nil {
-			switch {
-			case errors.Is(err, models.ErrRecordNotFound):
-				app.invalidAuthenticationTokenResponse(w, r)
-			default:
-				app.serverErrorResponse(w, r, err)
+		var userID int64
+		var user *models.User
+
+		// --- REDIS LOGIC START ---
+
+		idStr, err := app.redis.Get(r.Context(), "token:"+token).Result()
+		if err == nil {
+			userID, _ = strconv.ParseInt(idStr, 10, 64)
+
+			userJSON, err := app.redis.Get(r.Context(), "user:"+idStr).Result()
+			if err == nil {
+				err = json.Unmarshal([]byte(userJSON), &user)
+				if err == nil {
+					r = app.setUserContext(w, r, user)
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
+
+			// if we get to this point, it means that we could not found the token specified in the request
+			// in the redis cache, so we fallback to query the database
+		} else {
+			userID, err = app.models.Tokens.GetByToken(token)
+			if err != nil {
+				switch {
+				case errors.Is(err, models.ErrRecordNotFound):
+					app.invalidAuthenticationTokenResponse(w, r)
+				default:
+					app.serverErrorResponse(w, r, err)
+				}
+				return
+			}
+		}
+
+		// if we get to this point, it means that we found the token in the redis cache but we could not find the user struct in the database
+		// so we fallback to query the database
+		user, err = app.models.Users.GetUser(userID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
 			return
 		}
 
-		user, err := app.models.Users.GetUser(userID)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
+		// create redis cache for user
+		if userBytes, err := json.Marshal(user); err == nil {
+			app.redis.Set(r.Context(), "user:"+strconv.FormatInt(user.ID, 10), userBytes, 24*time.Hour)
 		}
-
+		// --- REDIS LOGIC END ---
 		r = app.setUserContext(w, r, user)
-
-		fmt.Println(user)
 
 		next.ServeHTTP(w, r)
 	})

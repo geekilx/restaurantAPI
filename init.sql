@@ -236,6 +236,7 @@ CREATE TABLE public.users_permissions (
 );
 
 
+
 ALTER TABLE public.users_permissions OWNER TO ilx;
 
 --
@@ -384,6 +385,10 @@ ALTER TABLE ONLY public.users_permissions
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurant(id) ON DELETE SET NULL;
 
+INSERT INTO public.permissions (code)
+VALUES
+('restaurant:read'),
+('restaurant:write');
 
 --
 -- PostgreSQL database dump complete
