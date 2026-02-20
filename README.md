@@ -1,5 +1,3 @@
-Here is the fully updated `README.md` with the Redis and performance sections integrated. You can copy this directly into your file.
-
 ```markdown
 # Restaurant API
 
