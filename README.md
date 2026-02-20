@@ -79,7 +79,7 @@ This will spin up the API, PostgreSQL, and Redis containers simultaneously.
 
 1. **Build and start the services:**
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 
 ```
 
@@ -92,7 +92,7 @@ docker-compose up -d --build
 
 3. **Stop the services:**
 ```bash
-docker-compose down
+docker compose down
 
 ```
 
@@ -156,11 +156,3 @@ go run ./cmd/api
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
 4. Push to the branch (`git push origin feature/AmazingFeature`).
 5. Open a Pull Request.
-
-## 📝 License
-
-Distributed under the MIT License.
-
-```
-
-```
